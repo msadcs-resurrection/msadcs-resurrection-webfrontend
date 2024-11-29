@@ -17,6 +17,10 @@ For this reason, I started the MSADCS-Resurrection project, which aims to bring 
 - Integration with Microsoft ADCS
 - Support for SQL databases (PostgreSQL) comming soon...
 
+## Screenshots
+
+<pre><img src="Screenshots/Dashboard.png" width="800px"></pre>
+
 ## Prerequisites
 
 - Python 3.8 or higher
