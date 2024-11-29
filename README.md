@@ -19,7 +19,7 @@ For this reason, I started the MSADCS-Resurrection project, which aims to bring 
 
 ## Screenshots
 
-<pre><img src="Screenshots/Dashboard.png" width="800px"></pre>
+<pre><img src="./images/Dashboard.png" width="800px"></pre>
 
 ## Prerequisites
 
