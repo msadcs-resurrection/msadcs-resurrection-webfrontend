@@ -19,7 +19,7 @@ For this reason, I started the MSADCS-Resurrection project, which aims to bring 
 
 ## Screenshots
 
-
+![Dashboard](https://github.com/user-attachments/assets/30e6a82e-d4cd-495a-85c2-f7ae1cce1038)
 
 ## Prerequisites
 
