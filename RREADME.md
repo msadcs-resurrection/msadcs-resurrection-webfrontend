@@ -13,6 +13,23 @@ A web-based frontend for Microsoft Active Directory Certificate Services (ADCS) 
 - Automatic certificate creation via certreq
 - Export in CER and PFX format
 
+## Screenshots
+
+![Dashboard](https://github.com/user-attachments/assets/30e6a82e-d4cd-495a-85c2-f7ae1cce1038)
+
+![Request](https://github.com/user-attachments/assets/b1930f83-42ca-4657-9d93-e3f128ca58a4)
+
+![MyRequests](https://github.com/user-attachments/assets/798e6242-b4f2-4704-b81e-72321ba96f42)
+
+![AdminManageRequests](https://github.com/user-attachments/assets/c2bb51aa-f202-497f-bb66-a01ebcb0c006)
+
+![AdminManageRequestsDetails](https://github.com/user-attachments/assets/443cabc7-1909-47a3-9ebb-37f2e9c28056)
+
+![MyRequestsIssue](https://github.com/user-attachments/assets/cbcde228-372d-4ef2-868b-a6fc170943a0)
+
+
+
+
 ## System Requirements
 
 - Python 3.7 or higher
