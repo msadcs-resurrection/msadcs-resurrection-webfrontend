@@ -150,7 +150,7 @@ ca_server:
 ```yaml
 certificates:
   allowed_templates:
-  - name: WebserverTLS
+  - name: Webserver
     allow_san: true
     enhanced_key_usage:
     - 1.3.6.1.5.5.7.3.1  # Server Authentication
