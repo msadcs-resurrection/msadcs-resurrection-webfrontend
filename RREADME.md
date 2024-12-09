@@ -1,6 +1,6 @@
 # ADCS Web Frontend
 
-A web-based frontend for Microsoft Active Directory Certificate Services (ADCS) that simplifies certificate request management.
+A web frontend for Microsoft Active Directory Certificate Services (ADCS) that provides a user-friendly state of the art web interface for requesting and managing certificates.
 
 ## Intention
 
