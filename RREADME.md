@@ -5,7 +5,7 @@ A web frontend for Microsoft Active Directory Certificate Services (ADCS) that p
 ## Intention
 
 MS ADCS is slowly dying, there appears to be no further development. The web interface certsrv is now only cumbersome to access and has no modern features whatsoever, a REST API for automation is non-existent, ACME only works through workarounds. Nevertheless, the system does its job excellently, is easy to use, and anyone who has looked at other CA systems will find that the alternatives aren't perfect either.
-For this reason, I started the MSADCS-Resurrection project, which aims to bring the MS CA back to a state that can absolutely compete with other modern CA systems today and is also fit for the future ahead.
+For this reason, I started the MSADCS-Resurrection project, which aims to bring the MS CA back to a state that can absolutely compete with other modern CA systems today and which is also ready for the future ahead.
 
 ## Features
 
