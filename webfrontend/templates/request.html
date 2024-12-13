@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ADCS Zertifikatsverwaltung - Zertifikat beantragen</title>
+    <meta charset="utf-8">
+    <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
+    <style>
+        .container { margin-top: 30px; }
+        .nav-tabs { margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Navigation einbinden -->
+        {% include 'nav.html' %}
+
+        <h2>{{ _('Zertifikat beantragen') }}</h2>
+        
+        <div class="form-group">
+            <label for="template">{{ _('Zertifikatsvorlage:') }}</label>
+            <select class="form-control" id="template">
+                <option value="">{{ _('Bitte wählen...') }}</option>
+            </select>
+        </div>
+    
+        <div class="form-group">
+            <label for="subject">{{ _('Allgemeiner Name:') }}</label>
+            <input type="text" class="form-control" id="subject">
+        </div>
+    
+        <div class="row">
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="name">{{ _('Name: *') }}</label>
+                    <input type="text" class="form-control" id="name" value="" required>
+                    <div class="invalid-feedback">
+                        {{ _('Bitte geben Sie einen Namen ein.') }}
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="email">{{ _('E-Mail: *') }}</label>
+                    <input type="email" class="form-control" id="email" value="" required>
+                    <div class="invalid-feedback">
+                        {{ _('Bitte geben Sie eine gültige E-Mail-Adresse ein.') }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    
+        <div class="row">
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="company">{{ _('Firma:') }}</label>
+                    <input type="text" class="form-control" id="company" value="Test ltd">
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="department">{{ _('Abteilung:') }}</label>
+                    <input type="text" class="form-control" id="department" value="Cert Management">
+                </div>
+            </div>
+        </div>
+    
+        <div class="row">
+            <div class="col-md-4">
+                <div class="form-group">
+                    <label for="city">{{ _('Ort:') }}</label>
+                    <input type="text" class="form-control" id="city" value="New York">
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="form-group">
+                    <label for="state">{{ _('Bundesland:') }}</label>
+                    <input type="text" class="form-control" id="state" value="NY">
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="form-group">
+                    <label for="country">{{ _('Land:') }}</label>
+                    <input type="text" class="form-control" id="country" value="US">
+                </div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="san">Subject Alternative Names:</label>
+            <div id="san-container">
+                <input type="text" class="form-control mb-2">
+            </div>
+        </div>
+        <button type="button" class="btn btn-secondary mr-2" onclick="addSanField()">{{ _('Weiteren SAN hinzufügen') }}</button>
+        <button class="btn btn-primary" onclick="requestCert()">Zertifikat beantragen</button>
+        <div id="result" class="mt-4"></div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/jquery.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            fetch('/api/templates')
+                .then(function(response) { 
+                    return response.json(); 
+                })
+                .then(function(templates) {
+                    var select = document.getElementById('template');
+                    templates.forEach(function(template) {
+                        var option = document.createElement('option');
+                        option.value = template.name;
+                        option.textContent = template.display_name || template.name;
+                        select.appendChild(option);
+                    });
+                })
+                .catch(function(error) {
+                });
+        });
+
+        function addSanField() {
+            var container = document.getElementById('san-container');
+            var input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'form-control mb-2';
+            input.placeholder = 'z.B. web.domain.com';
+            container.appendChild(input);
+        }
+
+        function requestCert() {
+        // Form-Validierung
+        const name = document.getElementById('name').value.trim();
+        const email = document.getElementById('email').value.trim();
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const translations = {requestId: "{{ _('Antragsnummer') }}"}
+    
+        let errors = [];
+        if (!name) {
+            errors.push('Name ist ein Pflichtfeld');
+            document.getElementById('name').classList.add('is-invalid');
+        } else {
+            document.getElementById('name').classList.remove('is-invalid');
+        }
+    
+        if (!email) {
+            errors.push('E-Mail ist ein Pflichtfeld');
+            document.getElementById('email').classList.add('is-invalid');
+        } else if (!emailRegex.test(email)) {
+            errors.push('Bitte geben Sie eine gültige E-Mail-Adresse ein');
+            document.getElementById('email').classList.add('is-invalid');
+        } else {
+            document.getElementById('email').classList.remove('is-invalid');
+        }
+        
+        if (errors.length > 0) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <ul class="mb-0">
+                        ${errors.map(error => `<li>${error}</li>`).join('')}
+                    </ul>
+                </div>`;
+            return;
+        }
+        
+    var resultDiv = document.getElementById('result');
+    resultDiv.innerHTML = '<div class="alert alert-info">Zertifikat wird erstellt...</div>';
+
+    var requestData = {
+        template: document.getElementById('template').value,
+        subject: document.getElementById('subject').value,
+        name: document.getElementById('name').value,
+        email: document.getElementById('email').value,
+        company: document.getElementById('company').value,
+        department: document.getElementById('department').value,
+        city: document.getElementById('city').value,
+        state: document.getElementById('state').value,
+        country: document.getElementById('country').value,
+        san_names: Array.from(document.querySelectorAll('#san-container input'))
+            .map(input => input.value)
+            .filter(value => value.trim() !== '')
+    };
+
+    fetch('/api/request', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        
+        if (data.success) {
+            if (data.request_id) {
+                // Fall: Antrag gespeichert für Genehmigung
+                resultDiv.innerHTML = `
+                    <div class="alert alert-success">
+                        <p>${data.message}</p>
+                        <p>${translations.requestId}: ${data.request_id}</p>
+                    </div>`;
+            } else {
+                // Fall: Direktes Erstellen des Zertifikats
+                resultDiv.innerHTML = `
+                    <div class="alert alert-success">
+                        <p>Zertifikat erfolgreich erstellt!</p>
+                        <div class="mb-4">
+                            <h5>Zertifikat (CER)</h5>
+                            <a href="data:application/x-x509-ca-cert;base64,${data.certificate}" 
+                               download="${requestData.subject}.cer" 
+                               class="btn btn-primary">Zertifikat herunterladen</a>
+                        </div>
+                        <div>
+                            <h5>Zertifikat mit privatem Schlüssel (PFX)</h5>
+                            <div class="alert alert-warning mb-3">
+                                <strong>PFX Passwort:</strong> ${data.pfx_password}
+                                <br><small>Wichtig: Speichern Sie das Passwort - es wird nur einmal angezeigt!</small>
+                            </div>
+                            <a href="data:application/x-pkcs12;base64,${data.pfx}" 
+                               download="${requestData.subject}.pfx" 
+                               class="btn btn-primary">PFX herunterladen</a>
+                        </div>
+                    </div>`;
+            }
+        } else {
+            resultDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    ${data.error || 'Ein unbekannter Fehler ist aufgetreten'}
+                </div>`;
+        }
+    })
+    .catch(error => {
+        resultDiv.innerHTML = `
+            <div class="alert alert-danger">
+                Fehler bei der Anfrage: ${error.message || 'Unbekannter Fehler'}
+            </div>`;
+    });
+        }
+    </script>
+</body>
+</html>

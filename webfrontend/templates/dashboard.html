@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ _('ADCS Zertifikatsverwaltung - Dashboard') }}</title>
+    <meta charset="utf-8">
+    <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
+    <style>
+        .container { margin-top: 30px; }
+        .nav-tabs { margin-bottom: 20px; }
+        .card {
+            margin-bottom: 20px;
+            transition: transform 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .stats-box {
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        {% include 'nav.html' %}
+
+        <h2>{{ _('Willkommen in der Zertifikatsverwaltung') }}</h2>
+
+        <!-- Statistik-Boxen -->
+        <div class="row mt-4">
+            <div class="col-md-4">
+                <div class="stats-box bg-info text-white">
+                    <h4>{{ _('Meine Anträge') }}</h4>
+                    <p class="h2">{{ stats.my_requests }}</p>
+                    <small>{{ _('Gesamt') }}</small>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stats-box bg-warning text-white">
+                    <h4>{{ _('Ausstehend') }}</h4>
+                    <p class="h2">{{ stats.pending }}</p>
+                    <small>{{ _('Noch nicht genehmigt') }}</small>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stats-box bg-success text-white">
+                    <h4>{{ _('Genehmigt') }}</h4>
+                    <p class="h2">{{ stats.approved }}</p>
+                    <small>{{ _('Bereit zum Download') }}</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Schnellzugriff-Karten -->
+        <div class="row mt-4">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ _('Neues Zertifikat') }}</h5>
+                        <p class="card-text">{{ _('Beantragen Sie ein neues Zertifikat für Ihren Server oder Ihre Anwendung.') }}</p>
+                        <a href="/request" class="btn btn-primary">{{ _('Zertifikat beantragen') }}</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ _('Meine Anträge') }}</h5>
+                        <p class="card-text">{{ _('Verwalten Sie Ihre bestehenden Zertifikatsanträge und laden Sie genehmigte Zertifikate herunter.') }}</p>
+                        <a href="/my-requests" class="btn btn-primary">{{ _('Anträge anzeigen') }}</a>
+                    </div>
+                </div>
+            </div>
+            {% if current_user.is_admin %}
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ _('Admin-Bereich') }}</h5>
+                        <p class="card-text">{{ _('Verwalten Sie alle Zertifikatsanträge und genehmigen oder lehnen Sie diese ab.') }}</p>
+                        <a href="/admin/requests" class="btn btn-primary">{{ _('Zur Verwaltung') }}</a>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        {% if stats.recent_requests %}
+        <!-- Letzte Aktivitäten -->
+        <div class="mt-4">
+            <h3>{{ _('Letzte Aktivitäten') }}</h3>
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>{{ _('Datum') }}</th>
+                            <th>{{ _('Template') }}</th>
+                            <th>{{ _('Subject') }}</th>
+                            <th>{{ _('Status') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for req in stats.recent_requests %}
+                        <tr>
+                            <td>{{ req.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                            <td>{{ req.template }}</td>
+                            <td>{{ req.subject }}</td>
+                            <td>
+                                {% if req.status == 'pending' %}
+                                    <span class="badge bg-warning">{{ _('Ausstehend') }}</span>
+                                {% elif req.status == 'approved' %}
+                                    <span class="badge bg-success">{{ _('Genehmigt') }}</span>
+                                {% elif req.status == 'rejected' %}
+                                    <span class="badge bg-danger">{{ _('Abgelehnt') }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>

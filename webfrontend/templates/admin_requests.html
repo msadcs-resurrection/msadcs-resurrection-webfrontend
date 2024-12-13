@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ _('ADCS Zertifikatsverwaltung - Admin') }}</title>
+    <meta charset="utf-8">
+    <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
+    <style>
+        .container { margin-top: 30px; }
+        .nav-tabs { margin-bottom: 20px; }
+        .custom-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1050;
+        }
+        .custom-modal.show {
+            display: block;
+        }
+        .custom-modal-content {
+            background: white;
+            margin: 10% auto;
+            padding: 20px;
+            width: 80%;
+            max-width: 600px;
+            border-radius: 4px;
+            position: relative;
+        }
+        .custom-close {
+            position: absolute;
+            right: 10px;
+            top: 10px;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        .action-buttons .btn {
+            margin-right: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        {% include 'nav.html' %}
+
+        <h2>{{ _('Zertifikatsanträge verwalten') }}</h2>
+
+        {% if not requests %}
+        <div class="alert alert-info">
+            {{ _('Keine ausstehenden Zertifikatsanträge vorhanden.') }}
+        </div>
+        {% else %}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>{{ _('Datum') }}</th>
+                        <th>{{ _('Benutzer') }}</th>
+                        <th>{{ _('Template') }}</th>
+                        <th>{{ _('Subject') }}</th>
+                        <th>{{ _('Status') }}</th>
+                        <th>{{ _('Aktionen') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for req in requests %}
+                    <tr>
+                        <td>{{ req.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                        <td>{{ req.username }}</td>
+                        <td>{{ req.template }}</td>
+                        <td>{{ req.subject }}</td>
+                        <td>
+                            {% if req.status == 'pending' %}
+                                <span class="badge bg-warning">{{ _('Ausstehend') }}</span>
+                            {% elif req.status == 'approved' %}
+                                <span class="badge bg-success">{{ _('Genehmigt') }}</span>
+                            {% elif req.status == 'rejected' %}
+                                <span class="badge bg-danger">{{ _('Abgelehnt') }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="action-buttons">
+                            {% if req.status == 'pending' %}
+                            <button onclick="showApproveModal('{{ req.request_id }}')" 
+                                    class="btn btn-success btn-sm">
+                                    {{ _('Genehmigen') }}
+                            </button>
+                            <button onclick="showRejectModal('{{ req.request_id }}')" 
+                                    class="btn btn-danger btn-sm">
+                                    {{ _('Ablehnen') }}
+                            </button>
+                            {% endif %}
+                            <button onclick="showDetails('{{ req.request_id }}')"
+                                    class="btn btn-info btn-sm">
+                                    {{ _('Details') }}
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Bestätigungs-Modal für Genehmigen/Ablehnen -->
+    <div class="modal fade" id="confirmModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"></h5>
+                    <button type="button" class="close" onclick="closeConfirmModal()">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeConfirmModal()"></button>
+                    <button type="button" class="btn btn-primary confirm-action"></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal für Details -->
+    <div class="modal fade" id="detailsModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">{{ _('Antragsdetails') }}</h5>
+                    <button type="button" class="close" onclick="closeDetailsModal()">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body" id="detailsModalContent">
+                    <!-- Wird dynamisch gefüllt -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeDetailsModal()">{{ _('Schließen') }}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/jquery.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+    <script>
+        const translations = {
+            confirmTitle: "{{ _('Bestätigung') }}",
+            confirmApprove: "{{ _('Möchten Sie diesen Antrag genehmigen?') }}",
+            confirmReject: "{{ _('Möchten Sie diesen Antrag ablehnen?') }}",
+            ok: "{{ _('OK') }}",
+            cancel: "{{ _('Abbrechen') }}",
+            error: "{{ _('Fehler:') }}",
+            unknownError: "{{ _('Unbekannter Fehler') }}",
+            loadError: "{{ _('Fehler beim Laden der Details:') }}",
+            requestError: "{{ _('Fehler bei der Anfrage:') }}"
+        };
+
+        // Bestätigungs-Modal Funktionen
+        function showConfirmModal(title, message, actionCallback) {
+            const modal = document.getElementById('confirmModal');
+            modal.querySelector('.modal-title').textContent = translations.confirmTitle;
+            modal.querySelector('.modal-body').textContent = message;
+            modal.querySelector('.btn-secondary').textContent = translations.cancel;
+            modal.querySelector('.btn-primary').textContent = translations.ok;
+            
+            const confirmButton = modal.querySelector('.confirm-action');
+            confirmButton.onclick = () => {
+                closeConfirmModal();
+                actionCallback();
+            };
+            
+            $(modal).modal('show');
+        }
+
+        function closeConfirmModal() {
+            $('#confirmModal').modal('hide');
+        }
+
+        function showApproveModal(requestId) {
+            showConfirmModal(
+                translations.confirmTitle,
+                translations.confirmApprove,
+                () => approveRequest(requestId)
+            );
+        }
+
+        function showRejectModal(requestId) {
+            showConfirmModal(
+                translations.confirmTitle,
+                translations.confirmReject,
+                () => rejectRequest(requestId)
+            );
+        }
+
+        // Details Modal Funktionen
+        function showDetails(requestId) {
+            fetch(`/api/admin/request-details/${requestId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    let sanNames = data.request_data.san_names || [];
+                    let sanHtml = sanNames.length ? sanNames.join('<br>') : '{{ _("Keine") }}';
+                    
+                    const content = `
+                        <div class="container-fluid">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6>{{ _('Antragsteller') }}</h6>
+                                    <p><strong>{{ _('Name:') }}</strong> ${data.request_data.name}</p>
+                                    <p><strong>{{ _('E-Mail:') }}</strong> ${data.request_data.email}</p>
+                                    <p><strong>{{ _('Firma:') }}</strong> ${data.request_data.company || '-'}</p>
+                                    <p><strong>{{ _('Abteilung:') }}</strong> ${data.request_data.department || '-'}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6>{{ _('Zertifikatsdetails') }}</h6>
+                                    <p><strong>{{ _('Template:') }}</strong> ${data.request_data.template}</p>
+                                    <p><strong>{{ _('Subject:') }}</strong> ${data.request_data.subject}</p>
+                                    <p><strong>{{ _('Alternative Namen:') }}</strong><br>${sanHtml}</p>
+                                    <p><strong>{{ _('Stadt:') }}</strong> ${data.request_data.city || '-'}</p>
+                                    <p><strong>{{ _('Bundesland:') }}</strong> ${data.request_data.state || '-'}</p>
+                                    <p><strong>{{ _('Land:') }}</strong> ${data.request_data.country || '-'}</p>
+                                </div>
+                            </div>
+                        </div>`;
+                    
+                    document.getElementById('detailsModalContent').innerHTML = content;
+                    $('#detailsModal').modal('show');
+                } else {
+                    alert(`${translations.loadError} ${data.error || translations.unknownError}`);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert(`${translations.requestError} ${error.message}`);
+            });
+        }
+
+        function closeDetailsModal() {
+            $('#detailsModal').modal('hide');
+        }
+
+        // API-Funktionen
+        function approveRequest(requestId) {
+            fetch(`/api/admin/approve/${requestId}`, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert(`${translations.error} ${data.error || translations.unknownError}`);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert(`${translations.requestError} ${error.message}`);
+            });
+        }
+
+        function rejectRequest(requestId) {
+            fetch(`/api/admin/reject/${requestId}`, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert(`${translations.error} ${data.error || translations.unknownError}`);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert(`${translations.requestError} ${error.message}`);
+            });
+        }
+    </script>
+</body>
+</html>
