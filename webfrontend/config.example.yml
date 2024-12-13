@@ -1,0 +1,33 @@
+# ADCS Web Frontend Configuration Example
+ca_server:
+  name: 'YOUR-CA-SERVER\CA-NAME'
+  connection_timeout: 30
+
+certificates:
+  allowed_templates:
+  - name: WebserverTLS
+    allow_san: true
+    enhanced_key_usage:
+    - 1.3.6.1.5.5.7.3.1  # Server Authentication
+    - 1.3.6.1.5.5.7.3.2  # Client Authentication
+    key_specs:
+    - RSA 2048
+    - RSA 4096
+  filter_templates: true
+
+# Secret key for login session, change the key to something random!!!
+security:
+  secret_key: 'e315ff4.e4b112a8355b27457#1b85957d064!6f019b72c5cd1.e351ee1?b14a703bb'
+  require_auth: false
+  allowed_domains: []
+
+ldap:
+  enabled: true
+  server: "ldaps://your-domain.com"
+  base_dn: "DC=your,DC=domain,DC=com"
+  user_dn: "DC=your,DC=domain,DC=com"
+  bind_user_dn: "cn=serviceaccount,dc=your,dc=domain,dc=com"
+  bind_user_password: "your-password"
+  user_search_attr: "sAMAccountName"
+  groups:
+    cert_admins: "CN=CertAdmins,OU=Groups,DC=your,DC=domain,DC=com"
