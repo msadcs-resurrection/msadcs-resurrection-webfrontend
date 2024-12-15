@@ -217,3 +217,7 @@ ldap:
 ## License
 
 This project is licensed under the MIT License. See LICENSE file for details.
+
+## Donation
+
+https://www.paypal.com/donate/?hosted_button_id=7NSHRFK434SPS
