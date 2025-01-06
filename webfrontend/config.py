@@ -1,9 +1,15 @@
 import yaml
+import os
 from typing import Dict, List
 
 class Config:
-    def __init__(self, config_path: str = "config.yml"):
-        self.config_path = config_path
+    def __init__(self, config_path: str = None):
+        if config_path is None:
+            # Verwende den Pfad relativ zum Skriptverzeichnis
+            self.config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.yml")
+        else:
+            self.config_path = config_path
+        print(f"Using configuration file: {os.path.abspath(self.config_path)}")
         self.config = self._load_config()
         self.LANGUAGES = ['de', 'en']
         self.BABEL_DEFAULT_LOCALE = 'de'

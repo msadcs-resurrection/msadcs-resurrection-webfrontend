@@ -4,6 +4,7 @@ ca_server:
   connection_timeout: 30
 
 certificates:
+  require_approval: true
   allowed_templates:
   - name: WebserverTLS
     allow_san: true

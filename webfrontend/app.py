@@ -13,6 +13,10 @@ import base64
 from models import db, CertificateRequest
 import uuid
 from datetime import datetime
+from datetime import datetime, timezone
+
+# Version number
+VERSION = '2.2.1'
 
 # Flask-App Konfiguration
 app = Flask(__name__, 
@@ -36,7 +40,9 @@ def set_language(lang):
     return redirect(request.referrer or url_for('index'))
 
 # SQLAlchemy Konfiguration
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///certificates.db'
+db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'certificates.db')
+print(f"Database location: {db_path}")
+app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 
@@ -133,7 +139,7 @@ def index():
                           .all()
     }
     
-    return render_template('dashboard.html', stats=stats)
+    return render_template('dashboard.html', stats=stats, version=VERSION)
 
 @app.route('/request')
 @login_required
@@ -168,7 +174,6 @@ def admin_requests():
 def get_templates():
     """Verfügbare Zertifikatsvorlagen von ADCS abrufen"""
     try:
-        print("Starte Template-Abfrage...")
         result = subprocess.run(['certutil', '-template'], 
                               capture_output=True, 
                               text=True,
@@ -212,6 +217,12 @@ def request_certificate():
     try:
         data = request.get_json()
         
+        template_name = data.get('template')
+        subject = data.get('subject')
+        san_names = data.get('san_names', [])
+        
+        data = request.get_json()
+        
         # Validierung der Pflichtfelder
         name = data.get('name', '').strip()
         email = data.get('email', '').strip()
@@ -232,21 +243,23 @@ def request_certificate():
                 subject=data.get('subject'),
                 san_names=data.get('san_names', []),
                 request_data=data,
-                status='pending'
+                status='pending',
+                created_at=datetime.now(timezone.utc).astimezone()
             )
             
             db.session.add(cert_request)
             db.session.commit()
-            
-            response = {
-                'success': True,
-                'message': _('Zertifikatsantrag wurde erfolgreich gespeichert und wird geprüft.'),
-                'request_id': cert_request.request_id
-            }
-            return jsonify(response)
         
         # Wenn keine Genehmigung erforderlich, direkt Zertifikat erstellen
         result = create_certificate(data)
+
+        if result.get('success'):
+            # Update den Status auf 'generated'
+            cert_request.status = 'generated'
+            db.session.commit()
+        
+        return jsonify(result)
+
         return jsonify(result)
 
     except Exception as e:
@@ -321,7 +334,8 @@ def generate_certificate(request_id):
     try:
         result = create_certificate(cert_request.request_data)
         if result.get('success'):
-            db.session.delete(cert_request)
+            cert_request.status = 'generated'
+            cert_request.generated_at = datetime.utcnow()
             db.session.commit()
         return result
     except Exception as e:
@@ -349,7 +363,6 @@ def create_certificate(data):
 
         # Temporäre Dateien mit vollständigem Pfad
         temp_dir = tempfile.mkdtemp()
-        print(f"Verwende temporäres Verzeichnis: {temp_dir}")
         
         inf_path = os.path.join(temp_dir, 'request.inf')
         req_path = os.path.join(temp_dir, 'request.req')
@@ -381,32 +394,35 @@ def create_certificate(data):
         subject_dn = ', '.join(subject_parts)
 
         # INF-Datei erstellen
-        inf_content = f"""[Version]
-Signature="$Windows NT$"
-
-[NewRequest]
-Subject = "{subject_dn}"
-KeySpec = 1
-KeyLength = 2048
-ProviderName = "Microsoft RSA SChannel Cryptographic Provider"
-MachineKeySet = TRUE
-RequestType = PKCS10
-Exportable = TRUE
-HashAlgorithm = sha256
-KeyUsage = 0xa0
-
-[EnhancedKeyUsageExtension]
-OID = 1.3.6.1.5.5.7.3.1
-OID = 1.3.6.1.5.5.7.3.2
-
-[RequestAttributes]
-CertificateTemplate = {template_name}"""
+        inf_content = "[Version]\n"
+        inf_content += 'Signature="$Windows NT$"\n\n'
+        inf_content += "[NewRequest]\n"
+        inf_content += f'Subject = "{subject_dn}"\n'
+        inf_content += "KeySpec = 1\n"
+        inf_content += "KeyLength = 2048\n"
+        inf_content += 'ProviderName = "Microsoft RSA SChannel Cryptographic Provider"\n'
+        inf_content += "MachineKeySet = TRUE\n"
+        inf_content += "RequestType = PKCS10\n"
+        inf_content += "Exportable = TRUE\n"
+        inf_content += "HashAlgorithm = sha256\n"
+        inf_content += "KeyUsage = 0xa0\n\n"
+        inf_content += "[EnhancedKeyUsageExtension]\n"
+        inf_content += "OID = 1.3.6.1.5.5.7.3.1\n"
+        inf_content += "OID = 1.3.6.1.5.5.7.3.2\n\n"
 
         if san_names:
-            inf_content += "\nSAN = \"DNS=" + subject
+            inf_content += "[Extensions]\n"
+            san_entries = []
+            san_entries.append(f"DNS={subject}")
             for san in san_names:
-                inf_content += f"&DNS={san}"
-            inf_content += '"'
+                san_entries.append(f"DNS={san}")
+            san_string = "&".join(san_entries)
+            
+            inf_content += '2.5.29.17 = "{text}"\n'
+            inf_content += f'_continue_ = "{san_string}"\n\n'
+
+        inf_content += "[RequestAttributes]\n"
+        inf_content += f"CertificateTemplate = {template_name}\n"
 
         with open(inf_path, 'w', encoding='utf-8') as inf_file:
             inf_file.write(inf_content)
@@ -419,6 +435,10 @@ CertificateTemplate = {template_name}"""
                 text=True,
                 encoding='cp1252'
             )
+
+            if result.returncode != 0:
+                raise Exception(f"Fehler bei der Anforderungserstellung: {result.stderr}")
+
             if result.returncode != 0:
                 raise Exception(f"Fehler bei der Anforderungserstellung: {result.stderr}")
 
@@ -434,7 +454,7 @@ CertificateTemplate = {template_name}"""
             output_lines = result.stdout.split('\n')
             for line in output_lines:
                 line = line.strip()
-                if 'Anforderungs-ID:' in line or 'Request ID:' in line:
+                if 'Anforderungs-ID:' in line or 'RequestId:' in line:
                     parts = line.split(':')
                     if len(parts) >= 2:
                         request_id = parts[1].strip().strip('"')
@@ -492,7 +512,7 @@ CertificateTemplate = {template_name}"""
             
             serial = None
             for line in result.stdout.split('\n'):
-                if "Seriennummer:" in line:
+                if "Seriennummer:" in line or "Serial Number:" in line:
                     serial = line.split(":", 1)[1].strip()
                     break
 
@@ -552,9 +572,10 @@ CertificateTemplate = {template_name}"""
     except Exception as e:
         raise Exception(f"Fehler bei der Zertifikatserstellung: {str(e)}")
 
-# Datenbank erstellen
+# Datenbank nur erstellen, wenn sie nicht existiert
 with app.app_context():
-    db.create_all()
+    if not os.path.exists(db_path):
+        db.create_all()
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000, host='0.0.0.0')
+    app.run(debug=False, port=8080, host='0.0.0.0')
